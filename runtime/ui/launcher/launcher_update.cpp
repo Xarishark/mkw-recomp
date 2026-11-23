@@ -224,7 +224,13 @@ static bool spawn(const char *const *args, bool preparing) {
     return true;
 }
 
+bool updates_managed_externally(void) {
+    const char *launcher = SDL_getenv("RECOMPLAUNCHER");
+    return launcher && !strcmp(launcher, "1");
+}
+
 void update_check_start(const char *exe_dir, bool manual) {
+    if (updates_managed_externally()) return;
     if (!manual && !cfg_bool("MKW_UPDATE_CHECK")) return;
     if (!g_lock) g_lock = SDL_CreateMutex();
     SDL_LockMutex(g_lock);
@@ -418,6 +424,7 @@ int update_apply(const char *exe_dir) {
 }
 
 int update_previous(const char *exe_dir, char *tag, unsigned cap) {
+    if (updates_managed_externally()) return 0;
     char p[1200];
 #ifdef _WIN32
     snprintf(p, sizeof p, "%s/update-previous/version", exe_dir);
@@ -491,6 +498,7 @@ void update_relaunch(const char *exe_dir) {
 }
 
 int update_just_installed(const char *exe_dir, char *tag, unsigned cap) {
+    if (updates_managed_externally()) return 0;
     char p[1200];
     snprintf(p, sizeof p, "%s/update-done", exe_dir);
     char replaced[96];   // the version the update replaced: its *.old files are kept for Undo

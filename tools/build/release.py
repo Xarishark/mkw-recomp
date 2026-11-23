@@ -59,11 +59,15 @@ APPRUN = """#!/bin/sh
 # the game the setup builds; setup/ and the libraries stay in the mount.
 set -eu
 here=$(dirname "$(readlink -f "$0")")
+export LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+if [ "${RECOMPLAUNCHER:-}" = 1 ]; then
+    # The launcher has already unpacked the AppImage into a writable installation.
+    exec "$here/mkw" "$@"
+fi
 if [ "${1:-}" = --prepare-next ]; then
     # the start screen of the version still played sets this one up beside it (prepare.py --next): this package's
     # tools, and no copy of its mkw over the one running
     shift
-    export LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     exec "$here/setup/python/bin/python3" -I "$here/setup/src/tools/prepare/prepare.py" --runtime "$here" --next "$@"
 fi
 home=${XDG_DATA_HOME:-$HOME/.local/share}/mkw-recomp
@@ -74,7 +78,6 @@ if ! cmp -s "$here/mkw" "$home/mkw"; then
     mv -f "$home/mkw.new" "$home/mkw"
 fi
 ln -sfn "$here/setup" "$home/setup"
-export LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$home/mkw" "$@"
 """
 
@@ -145,6 +148,7 @@ def linux(dist: Path, version: str, arch: str = "x86_64") -> Path:
     shutil.rmtree(app, ignore_errors=True)
     app.mkdir(parents=True)
     shutil.copy2(exe, app / "mkw")
+    shutil.copy2(ROOT / "tools/build/recomplauncher.json", app / "recomplauncher.json")
     shutil.copytree(dist / "setup", app / "setup", symlinks=True)
     bundle_libs(exe, app / "lib")
     licenses(app / "licenses")

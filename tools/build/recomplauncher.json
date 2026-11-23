@@ -4,7 +4,7 @@
   "name": "Mario Kart World Recompiled",
   "repo": "adriadam10/mkw-recomp",
   "start": {
-    "program": ["mkw.exe", "mkw"]
+    "program": ["mkw.exe", "mkw-recomp.AppImage", "AppRun", "mkw"]
   },
   "config": [
     {

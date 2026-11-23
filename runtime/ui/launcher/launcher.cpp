@@ -1941,11 +1941,13 @@ static void page_tools(float w, float h) {
             snprintf(note, sizeof note, "https://github.com/%s/releases", repo());
             SDL_OpenURL(note);
         }
-        ImGui::SameLine();
         bool busy = u.phase == UPDATE_FETCHING || u.phase == UPDATE_READY || u.phase == UPDATE_PREPARING;
-        ImGui::BeginDisabled(u.phase == UPDATE_CHECKING || u.phase == UPDATE_PREPARED || busy);
-        if (ImGui::Button(menu_text(UI_TOOLS_CHECK), ImVec2(0, act_h))) update_check_start(L.exe_dir, true);
-        ImGui::EndDisabled();
+        if (!updates_managed_externally()) {
+            ImGui::SameLine();
+            ImGui::BeginDisabled(u.phase == UPDATE_CHECKING || u.phase == UPDATE_PREPARED || busy);
+            if (ImGui::Button(menu_text(UI_TOOLS_CHECK), ImVec2(0, act_h))) update_check_start(L.exe_dir, true);
+            ImGui::EndDisabled();
+        }
         char kept[96];
         if (update_previous(L.exe_dir, kept, sizeof kept)) {
             snprintf(text, sizeof text, menu_text(UI_TOOLS_UNDO_ROW), kept);

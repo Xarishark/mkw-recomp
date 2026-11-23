@@ -17,6 +17,8 @@ typedef struct {
     int step;                 // UPDATE_PREPARING: prepare.py's step (setup_step_index), -1 none yet
 } UpdateState;
 
+// RecompLauncher owns updates when it starts the game.
+bool updates_managed_externally(void);
 // At start, respect MKW_UPDATE_CHECK. An explicit check reports the result on the Tools page.
 // A release already downloaded is set up again beside the version being played.
 void update_check_start(const char *exe_dir, bool manual);
