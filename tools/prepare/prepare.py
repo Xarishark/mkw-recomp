@@ -32,6 +32,7 @@ gone: moved or renamed, #188; a copy's game folder stands in for it, #501), noga
 
 Usage: python prepare.py --source DIR|FILE.nup --game DIR [--runtime DIR] [--romfs copy|link] [--jobs N]
                          [--target linux|windows] [--next --port VER]
+--recomplauncher with --romfs copy reports fractional progress and marks a completed Easy Setup.
 Without --source (the launcher after an update, tools/prepare/update.py): the copy and the RomFS mode of the last
 setup in --game, from its setup-state.json; only the steps whose key changed run again.
 --next (an update while the player keeps playing): the outputs the game reads go to <game>/setup-next/, warm's caches
@@ -127,6 +128,30 @@ if _LOGGED:
 SHADER_DIRS = ("Effect", "Layout", "Lib")  # extract.py's SHADER_DIRS: with Shader/, the RomFS folders it reads
 STEPS = ("check", "exefs", "romfs", "generate", "compile", "shaders", "warm", "cleanup")
 WARM_TIMEOUT = 1800  # mkw --prewarm: ~10 000 shader libraries compiled cold on every core
+
+
+def recomplauncher_progress():
+    """Translate the start screen's counters to RecompLauncher's fractional progress on stdout."""
+    labels = ("Checking your dump", "Preparing ExeFS", "Copying RomFS", "Recompiling game code",
+              "Building the game library", "Translating shaders", "Warming the shader cache", "Finishing setup")
+    current = 0
+
+    def line(event, *values):
+        nonlocal current
+        fraction = 0.0
+        if event in ("step", "skip") and values[0] in STEPS:
+            current = STEPS.index(values[0])
+            fraction = float(event == "skip")
+        elif event == "progress":
+            done, total = map(int, values)
+            fraction = min(1.0, max(0.0, done / total)) if total else 0.0
+        elif event == "done":
+            return "progress 1 Setup complete"
+        else:
+            return " ".join(map(str, (event, *values)))
+        return f"progress {(current + fraction) / len(STEPS):.6f} {labels[current]}"
+
+    return line
 
 
 def ini_set(ini: Path, key: str, value: str) -> None:
@@ -296,7 +321,11 @@ def main() -> None:
     ap.add_argument(
         "--port", default="", help="the port version this setup is for (the start screen's): kept in the state"
     )
+    ap.add_argument("--recomplauncher", action="store_true", help="report progress and mark completion for RecompLauncher")
     args = ap.parse_args()
+    if args.recomplauncher and (args.next or args.romfs != "copy"):
+        ap.error("--recomplauncher requires --romfs copy and cannot be used with --next")
+    machine.stdout_event = recomplauncher_progress() if args.recomplauncher else None
     own_children()
     if ca := update.ca_file():  # spec.py downloads NVIDIA's redistributables with this Python (issue #102, NixOS)
         os.environ["SSL_CERT_FILE"] = ca
@@ -305,7 +334,10 @@ def main() -> None:
     game = args.game.absolute()
     runtime = args.runtime.resolve() if args.runtime else game
     lock = hold_lock(game)  # noqa: F841 (held until exit)
+    ready = game / "recomplauncher-ready"
     try:
+        if args.recomplauncher:
+            ready.unlink(missing_ok=True)
         if args.next:  # the player may be racing meanwhile: the game's threads go first; the tools inherit it
             nextsetup.lower_priority()
             nextsetup.recover(game)
@@ -415,6 +447,17 @@ def main() -> None:
             "shaders": f"{exefs_src} {romfs_src} {translator_key()}",
             "warm": f"{build.game_id()} {romfs_src}",
         })  # fmt: skip
+        if args.recomplauncher:
+            library = "mkwgame.dll" if args.target == "windows" else "mkwgame.so"
+            for output, step_name in (
+                (library, "compile"),
+                ("mkwgame.id", "compile"),
+                ("romfs", "romfs"),
+                ("spirv", "shaders"),
+                ("spirv/shaders.pack", "warm"),
+            ):
+                if not (game / output).exists():
+                    state["done"].pop(step_name, None)
         regenerate_if_cleaned(state, keys, work)
         redo_exefs_if_missing(state, game)
         # The room the steps to come take: the RomFS copy less what a cut one left, and the game's build the first
@@ -556,6 +599,8 @@ def main() -> None:
         if args.next:  # finished: the next start of the new version moves it into place (nextsetup.promote)
             state["port"], state["ready"] = args.port, True
             save_state(dest, state)
+        if args.recomplauncher:
+            ready.touch()
         emit("done")
     except Failed as e:
         print(f"time: {step} failed after {time.monotonic() - t_step:.1f} s", file=sys.stderr)

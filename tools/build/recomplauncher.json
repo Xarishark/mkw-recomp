@@ -3,8 +3,28 @@
   "format": 1,
   "name": "Mario Kart World Recompiled",
   "repo": "adriadam10/mkw-recomp",
+  "inputs": [
+    {
+      "id": "game",
+      "label": "Decrypted Mario Kart World 1.0.0 or 1.8.0 (.nup, .nx, or a folder with exefs and romfs)",
+      "formats": [{ "type": "file", "extensions": ["nup", "nx"] }, { "type": "folder" }],
+      "check": { "file": "exefs/main" }
+    }
+  ],
   "start": {
-    "program": ["mkw.exe", "mkw-recomp.AppImage", "AppRun", "mkw"]
+    "program": ["mkw.exe"],
+    "env": { "MKW_GAME_DIR": "{install}", "MKW_START_SCREEN": "skip" }
+  },
+  "prepare": {
+    "program": ["setup/python/python.exe"],
+    "args": [
+      "-I", "{install}/setup/src/tools/prepare/prepare.py", "--recomplauncher",
+      "--source={input:game}", "--game", "{install}", "--romfs", "copy"
+    ],
+    "label": "Build the game and shaders from your dump",
+    "done": ["{install}/recomplauncher-ready", "{install}/exefs/main", "{install}/romfs", "{install}/mkwgame.dll",
+             "{install}/mkwgame.id", "{install}/spirv/shaders.pack"],
+    "keeps_copy": true
   },
   "config": [
     {
@@ -15,6 +35,7 @@
   ],
   "saves": ["{install}/profile/save", "{install}/profile/players"],
   "folders": {
+    "game": [{ "path": "{install}/romfs" }],
     "logs": [{ "path": "{install}/logs" }]
   },
   "settings": [

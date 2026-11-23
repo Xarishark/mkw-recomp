@@ -23,6 +23,7 @@ import build  # (mem_total_gb, windows_memory_gb)
 # open): restarted at each event, so only a setup that stopped moving dumps. A fixed two-minute repeat wrote ~1 000
 # lines of stacks into a healthy 12-minute setup (0.1.14's release check), which read like an error.
 STALL_S = 0
+stdout_event: Callable[..., str] | None = None
 
 
 def emit(*words: object) -> None:
@@ -30,7 +31,10 @@ def emit(*words: object) -> None:
     gone (the player closed the game while an update was set up beside it, prepare.py --next) does not stop the setup:
     its events go on to the log alone, and the next start resumes from the state."""
     try:
-        print(*words, flush=True)
+        if stdout_event:
+            print(stdout_event(*words), flush=True)
+        else:
+            print(*words, flush=True)
     except OSError:  # BrokenPipeError on Linux, EINVAL on Windows
         sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
     print(*words, file=sys.stderr)

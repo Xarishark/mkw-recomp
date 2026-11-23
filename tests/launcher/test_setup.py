@@ -43,6 +43,23 @@ def run_prepare(*args: str) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, encoding="utf-8", timeout=60)  # fmt: skip
 
 
+def test_recomplauncher_progress_accepts_runtime_unpack_counters() -> None:
+    progress = prepare.recomplauncher_progress()
+    assert progress("step", "romfs") == "progress 0.250000 Copying RomFS"
+    assert progress("progress", "25", "50") == "progress 0.312500 Copying RomFS"
+    assert progress("done") == "progress 1 Setup complete"
+
+
+def test_failed_recomplauncher_setup_invalidates_readiness(tmp_path: Path) -> None:
+    ready = tmp_path / "recomplauncher-ready"
+    ready.touch()
+    p = run_prepare("--game", str(tmp_path), "--romfs", "copy", "--recomplauncher")
+
+    assert p.returncode == 2
+    assert "no earlier setup" in p.stdout
+    assert not ready.exists()
+
+
 @pytest.mark.parametrize("name", ["Plain", "Café", "玩家"])
 def test_moved_source_event_uses_utf8(tmp_path: Path, name: str) -> None:
     gone = tmp_path / name
@@ -718,7 +735,7 @@ def test_copy_keeps_installed_files_when_source_scan_fails(
 @pytest.fixture
 def loose_romfs_setup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> tuple[Path, Callable[[str], None]]:
+) -> tuple[Path, Callable[..., None]]:
     game = tmp_path / "PC installation"
     game.mkdir()
     for version, data in (("1.0.0", b"old!"), ("1.8.0", b"new!")):
@@ -738,20 +755,35 @@ def loose_romfs_setup(
     monkeypatch.setattr(prepare, "hold_lock", lambda _game: None)
 
     def check(src: Path, *_: Path) -> tuple[Path, Path, SimpleNamespace]:
-        return src / "exefs", src / "romfs", SimpleNamespace(name=src.name, romfs_files=3)
+        romfs = src / "romfs"
+        version = "1.0.0" if (romfs / "1.0.0").is_file() else "1.8.0"
+        return src / "exefs", romfs, SimpleNamespace(name=version, romfs_files=3)
 
     monkeypatch.setattr(prepare, "check", check)
 
-    def run(version: str) -> None:
+    def run(version: str | None, *extra: str) -> None:
         log = game / "logs/setup.log"
         log.parent.mkdir(exist_ok=True)
         with log.open("w", encoding="utf-8") as log_stream, monkeypatch.context() as patch:
             patch.setattr(sys, "stderr", log_stream)
-            patch.setattr(sys, "argv", ["prepare.py", "--source", str(tmp_path / version), "--game", str(game),
-                                        "--romfs", "copy", "--jobs", "1"])
+            source = ["--source", str(tmp_path / version)] if version else []
+            patch.setattr(sys, "argv", ["prepare.py", *source, "--game", str(game), "--romfs", "copy", "--jobs", "1",
+                                        *extra])
+            patch.setattr(machine, "stdout_event", None)
             prepare.main()
 
     return game / "romfs", run
+
+
+def test_recomplauncher_rebuild_reuses_copied_romfs(loose_romfs_setup, capsys: pytest.CaptureFixture) -> None:
+    romfs, run = loose_romfs_setup
+    run("1.0.0", "--recomplauncher")
+    shutil.rmtree(romfs.parent.parent / "1.0.0")
+    run(None, "--recomplauncher")
+
+    assert (romfs / "shared.bin").read_bytes() == b"old!"
+    assert (romfs.parent / "recomplauncher-ready").is_file()
+    assert capsys.readouterr().out.splitlines()[-1] == "progress 1 Setup complete"
 
 
 def test_loose_romfs_replaces_same_size_files_when_switching_versions(loose_romfs_setup) -> None:

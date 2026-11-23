@@ -18,6 +18,7 @@ Usage: uv run tools/build/release.py --target linux|linux-aarch64|windows --vers
 """
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -62,6 +63,9 @@ here=$(dirname "$(readlink -f "$0")")
 export LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 if [ "${RECOMPLAUNCHER:-}" = 1 ]; then
     # The launcher has already unpacked the AppImage into a writable installation.
+    if [ "${1:-}" = --recomplauncher ]; then
+        exec "$here/setup/python/bin/python3" -I "$here/setup/src/tools/prepare/prepare.py" --runtime "$here" "$@"
+    fi
     exec "$here/mkw" "$@"
 fi
 if [ "${1:-}" = --prepare-next ]; then
@@ -138,6 +142,19 @@ def licenses(dst: Path) -> None:
         shutil.copy2(sysroot.SYSROOT / rel, dst / f"{name}-copyright")
 
 
+def launcher_manifest(version: str, *, windows: bool) -> str:
+    manifest = json.loads((ROOT / "tools/build/recomplauncher.json").read_text(encoding="utf-8"))
+    prepare = manifest["prepare"]
+    if not windows:
+        manifest["start"]["program"] = ["AppRun"]
+        prepare["program"] = ["AppRun"]
+        prepare["args"] = prepare["args"][2:]  # AppRun supplies the bundled Python and script.
+        prepare["done"] = [path.removesuffix(".dll") + ".so" if path.endswith(".dll") else path
+                           for path in prepare["done"]]
+    prepare["args"] += ["--port", version]
+    return json.dumps(manifest, indent=2) + "\n"
+
+
 def linux(dist: Path, version: str, arch: str = "x86_64") -> Path:
     exe = dist / "mkw"
     glibc = subprocess.run(["objdump", "-T", str(exe)], capture_output=True, text=True, check=True).stdout
@@ -148,7 +165,7 @@ def linux(dist: Path, version: str, arch: str = "x86_64") -> Path:
     shutil.rmtree(app, ignore_errors=True)
     app.mkdir(parents=True)
     shutil.copy2(exe, app / "mkw")
-    shutil.copy2(ROOT / "tools/build/recomplauncher.json", app / "recomplauncher.json")
+    (app / "recomplauncher.json").write_text(launcher_manifest(version, windows=False), encoding="utf-8")
     shutil.copytree(dist / "setup", app / "setup", symlinks=True)
     bundle_libs(exe, app / "lib")
     licenses(app / "licenses")
@@ -195,7 +212,7 @@ def windows(dist: Path, version: str, noavx2: bool = False) -> Path:
         z.write(ROOT / "LICENSE", top / "licenses/mkw-recomp-LICENSE")
         for name, rel in THIRD_PARTY.items():
             z.write(ROOT / rel, top / "licenses" / name)
-        z.write(ROOT / "tools/build/recomplauncher.json", top / "recomplauncher.json")  # RecompLauncher's setup file (#706)
+        z.writestr((top / "recomplauncher.json").as_posix(), launcher_manifest(version, windows=True))
         # the libraries in mkw.exe and beside it (tools/build/windeps.py keeps each package's licence files)
         for p in sorted((ROOT / "build/win/deps/share/licenses").rglob("*")):
             if p.is_file():

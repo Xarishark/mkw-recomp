@@ -1,6 +1,8 @@
 # tests/launcher
 
 The setup, the installation selector and the Add to Steam of the start screen.
+The RecompLauncher checks in `test_setup.py` cover progress from the unpacker, setup failure and rebuilding from a
+local copy after the original dump is removed.
 
 | File | What it checks |
 |---|---|

@@ -88,6 +88,11 @@ The open work, in order (details: [docs/project/roadmap.md](docs/project/roadmap
    the whole game and downloads NVIDIA's `nvdisasm` and `ptxas` (84 MB on Linux, 126 MB on Windows). Then **Play**.
 4. New releases are offered on the start screen (**Update to vX**); **Settings → Menu → Check for updates** turns that off.
 
+With [RecompLauncher](https://github.com/elripalda/RecompLauncher), use **Easy Setup** and select your decrypted
+`.nup`, `.nx` or the folder containing `exefs/` and `romfs/`. It builds the game in your Recomp Library and uses the
+copy there to rebuild after updates. Allow about 30 GB free in that library. RecompLauncher handles updates for this
+installation.
+
 Requirements: x86-64 CPU with AVX2 (or, on Linux, AArch64 with ARMv8.2: LSE, FP16, RCpc, DotProd, CRC32), a GPU with
 Vulkan 1.3 (`VK_EXT_mesh_shader` recommended), 16 GB of RAM recommended. In a Docker or Podman container on Linux,
 allow `userfaultfd` in the seccomp profile (Docker's default refuses it), or it runs several times slower.
