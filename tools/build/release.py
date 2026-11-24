@@ -2,9 +2,13 @@
 Linux AppImage or the Windows zip. Only the runtime, its libraries and setup/ go in, never anything of the game: a dev
 folder that also holds the built game (mkwgame.*, spirv/, the caches) packs the same release.
 
-Linux: the AppImage's AppRun keeps a copy of mkw in ${XDG_DATA_HOME:-~/.local/share}/mkw-recomp, updated when the
-AppImage brings a new one, links setup/ there to the mount (a new path on every start) and starts it with the bundled
-libraries first on the library path. The runtime keeps using the folder of its executable for the game the setup builds,
+Linux: run as an AppImage (mounted read-only, APPIMAGE set), the AppRun keeps a copy of mkw in
+${XDG_DATA_HOME:-~/.local/share}/mkw-recomp, updated when the AppImage brings a new one, links setup/ there to the mount
+(a new path on every start) and starts it with the bundled libraries first on the library path. Unpacked into a folder
+it can write to (--appimage-extract, or a launcher such as RecompLauncher, which unpacks every AppImage it installs), it
+starts mkw where it is, like the Windows zip: one folder holds the game the setup builds, its settings and saves, however
+it was started. mkw also finds the bundled libraries by itself (an rpath of $ORIGIN/lib, tools/build/build.py), for a
+launcher that starts it directly. The runtime keeps using the folder of its executable for the game the setup builds,
 its settings and caches, as in the Windows zip; the read-only mount only holds the tools. The libraries come from the
 sysroot the release links against (tools/build/sysroot.py), which lets it start on systems as old as Debian 11. The
 packing follows totk-pc-recomp's tools/make_release_linux.py (MIT): appimagetool and the static type-2 runtime from
@@ -56,16 +60,19 @@ THIRD_PARTY = {"FidelityFX-LICENSE.txt": "runtime/third_party/ffx_sdk/LICENSE.tx
                "THIRD_PARTY_NOTICES.txt": "tools/build/THIRD_PARTY_NOTICES.txt"}  # fmt: skip
 
 APPRUN = """#!/bin/sh
-# The AppImage's entry (tools/build/release.py): the runtime runs from a copy in the player's data folder, which holds
-# the game the setup builds; setup/ and the libraries stay in the mount.
+# The AppImage's entry (tools/build/release.py). Mounted (APPIMAGE set, read-only), the runtime runs from a copy in the
+# player's data folder, which holds the game the setup builds; setup/ and the libraries stay in the mount. Unpacked
+# into a folder it can write to, it runs where it is, so that folder holds everything however it is started.
 set -eu
 here=$(dirname "$(readlink -f "$0")")
 export LD_LIBRARY_PATH="$here/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-if [ "${RECOMPLAUNCHER:-}" = 1 ]; then
-    # The launcher has already unpacked the AppImage into a writable installation.
-    if [ "${1:-}" = --recomplauncher ]; then
-        exec "$here/setup/python/bin/python3" -I "$here/setup/src/tools/prepare/prepare.py" --runtime "$here" "$@"
-    fi
+if [ "${RECOMPLAUNCHER:-}" = 1 ] && [ "${1:-}" = --recomplauncher ]; then
+    # RecompLauncher's setup step (Easy Setup): this package's tools, in this folder
+    exec "$here/setup/python/bin/python3" -I "$here/setup/src/tools/prepare/prepare.py" --runtime "$here" "$@"
+fi
+if [ "${RECOMPLAUNCHER:-}" = 1 ] || { [ -z "${APPIMAGE:-}" ] && [ -w "$here" ]; }; then
+    # Unpacked: by RecompLauncher (it unpacks every AppImage it installs, and never sets APPIMAGE) or by
+    # --appimage-extract. Not --appimage-extract-and-run: its folder goes when the game closes, and it sets APPIMAGE.
     exec "$here/mkw" "$@"
 fi
 if [ "${1:-}" = --prepare-next ]; then

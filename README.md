@@ -84,14 +84,18 @@ The open work, in order (details: [docs/project/roadmap.md](docs/project/roadmap
    (`-aarch64` on ARM; glibc 2.31 or newer: Debian 11, Ubuntu 20.04, SteamOS and later) or the `.zip` on Windows,
    unpacked into a folder. About 30 GB free.
 3. Run it (`chmod +x` the AppImage first), open **Game files**, optionally **Choose game folder** (default on Linux:
-   `~/.local/share/mkw-recomp`), point it at your dump and press **Set up**. The first setup takes a while: it compiles
+   `~/.local/share/mkw-recomp`, or the folder you unpacked the AppImage into with `--appimage-extract`), point it at your
+   dump and press **Set up**. The first setup takes a while: it compiles
    the whole game and downloads NVIDIA's `nvdisasm` and `ptxas` (84 MB on Linux, 126 MB on Windows). Then **Play**.
 4. New releases are offered on the start screen (**Update to vX**); **Settings → Menu → Check for updates** turns that off.
 
 With [RecompLauncher](https://github.com/elripalda/RecompLauncher), use **Easy Setup** and select your decrypted
 `.nup`, `.nx` or the folder containing `exefs/` and `romfs/`. It builds the game in your Recomp Library and uses the
 copy there to rebuild after updates. Allow about 30 GB free in that library. RecompLauncher handles updates for this
-installation.
+installation. On Linux it unpacks the AppImage into the library, and the game runs from that one folder whether you use
+Easy Setup or set it up from the start screen.
+
+<a href="https://recomplauncher.com/game/mkw-recomp"><img src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" alt="Get it on RecompLauncher" height="56"></a>
 
 Requirements: x86-64 CPU with AVX2 (or, on Linux, AArch64 with ARMv8.2: LSE, FP16, RCpc, DotProd, CRC32), a GPU with
 Vulkan 1.3 (`VK_EXT_mesh_shader` recommended), 16 GB of RAM recommended. In a Docker or Podman container on Linux,
