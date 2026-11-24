@@ -1058,6 +1058,11 @@ void cfg_init(void) {
     initialized = 1;
     load_ini();
     const char *selected = cfg_get("MKW_GAME_DIR");
+    // RecompLauncher names the folder it keeps a game's data in ({data}, <game>/recompdata) in RECOMPLAUNCHER_DATA,
+    // for the game and its setup step, with its Easy Setup or without. With no folder chosen here (MKW_GAME_DIR, or
+    // Choose game folder), the game is built, set and saved there, so one folder holds it however it was started.
+    const char *launcher_data = getenv("RECOMPLAUNCHER_DATA");
+    if ((!selected || !*selected) && launcher_data && *launcher_data) selected = launcher_data;
     if (selected && *selected) {
         char dir[CFG_GAME_DIR_MAX + 1];
         game_dir_invalid = !resolve_game_dir(selected, dir, sizeof dir);

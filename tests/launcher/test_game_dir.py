@@ -31,7 +31,8 @@ def game_dir_probe(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def probe(exe: Path, *args: str, **overrides: str) -> dict[str, str]:
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("MKW_", "TEST_LOG_", "TEST_STDERR_"))}
+    skip = ("MKW_", "TEST_LOG_", "TEST_STDERR_", "RECOMPLAUNCHER")
+    env = {k: v for k, v in os.environ.items() if not k.startswith(skip)}
     env.update(overrides)
     p = subprocess.run([str(exe), *args], env=env, check=True, capture_output=True, text=True)
     return dict(line.split("=", 1) for line in p.stdout.splitlines())
@@ -75,6 +76,37 @@ def test_relative_directory_and_environment_override(launcher: Path, tmp_path: P
     result = probe(launcher, "select", str(game), MKW_GAME_DIR=str(other))
     assert result["dir"] == str(other) and result["selected"] == "0"
     assert probe(launcher)["dir"] == str(game)
+
+
+def test_recomplauncher_data_is_the_default_directory(launcher: Path, tmp_path: Path) -> None:
+    data = installation(tmp_path / "Recomp Library ñ")
+    result = probe(launcher, RECOMPLAUNCHER_DATA=str(data))
+    assert result == {"dir": str(data), "ready": "1", "romfs": "/dump ñ/romfs", "volume": "80"}
+
+
+def test_empty_recomplauncher_data_is_used_before_its_first_setup(launcher: Path, tmp_path: Path) -> None:
+    data = tmp_path / "recompdata"
+    data.mkdir()
+    result = probe(launcher, RECOMPLAUNCHER_DATA=str(data))
+    assert result == {"dir": str(data), "ready": "0", "romfs": "", "volume": "100"}
+
+
+def test_chosen_directory_wins_over_recomplauncher_data(launcher: Path, tmp_path: Path) -> None:
+    game = installation(tmp_path / "Chosen")
+    data = installation(tmp_path / "recompdata", 65)
+    probe(launcher, "select", str(game))
+    assert probe(launcher, RECOMPLAUNCHER_DATA=str(data))["dir"] == str(game)
+
+
+def test_environment_override_wins_over_recomplauncher_data(launcher: Path, tmp_path: Path) -> None:
+    other = installation(tmp_path / "Other game")
+    data = installation(tmp_path / "recompdata", 65)
+    assert probe(launcher, MKW_GAME_DIR=str(other), RECOMPLAUNCHER_DATA=str(data))["dir"] == str(other)
+
+
+def test_log_folder_follows_recomplauncher_data(launcher: Path, tmp_path: Path) -> None:
+    data = installation(tmp_path / "recompdata")
+    assert probe(launcher, "logs", RECOMPLAUNCHER_DATA=str(data)) == {"ok": "1", "folder": str(data / "logs")}
 
 
 def test_switch_to_empty_folder_does_not_reuse_old_installation(launcher: Path, tmp_path: Path) -> None:

@@ -90,10 +90,11 @@ The open work, in order (details: [docs/project/roadmap.md](docs/project/roadmap
 4. New releases are offered on the start screen (**Update to vX**); **Settings → Menu → Check for updates** turns that off.
 
 With [RecompLauncher](https://github.com/elripalda/RecompLauncher), use **Easy Setup** and select your decrypted
-`.nup`, `.nx` or the folder containing `exefs/` and `romfs/`. It builds the game in your Recomp Library and uses the
-copy there to rebuild after updates. Allow about 30 GB free in that library. RecompLauncher handles updates for this
-installation. On Linux it unpacks the AppImage into the library, and the game runs from that one folder whether you use
-Easy Setup or set it up from the start screen.
+`.nup`, `.nx` or the folder containing `exefs/` and `romfs/`. It builds the game in the game's `recompdata` folder in
+your Recomp Library and uses the copy there to rebuild after updates. Allow about 30 GB free in that library.
+RecompLauncher handles updates for this installation. The game, its settings and saves stay in that one folder whether
+you use Easy Setup or set it up from the start screen, on Windows and on Linux (where the launcher unpacks the AppImage
+into the library).
 
 <a href="https://recomplauncher.com/game/mkw-recomp"><img src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" alt="Get it on RecompLauncher" height="56"></a>
 

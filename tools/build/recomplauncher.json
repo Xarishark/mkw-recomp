@@ -13,30 +13,30 @@
   ],
   "start": {
     "program": ["mkw.exe"],
-    "env": { "MKW_GAME_DIR": "{install}", "MKW_START_SCREEN": "skip" }
+    "env": { "MKW_START_SCREEN": "skip" }
   },
   "prepare": {
     "program": ["setup/python/python.exe"],
     "args": [
       "-I", "{install}/setup/src/tools/prepare/prepare.py", "--recomplauncher",
-      "--source={input:game}", "--game", "{install}", "--romfs", "copy"
+      "--source={input:game}", "--game", "{data}", "--romfs", "copy"
     ],
     "label": "Build the game and shaders from your dump",
-    "done": ["{install}/recomplauncher-ready", "{install}/exefs/main", "{install}/romfs", "{install}/mkwgame.dll",
-             "{install}/mkwgame.id", "{install}/spirv/shaders.pack"],
+    "done": ["{data}/recomplauncher-ready", "{data}/exefs/main", "{data}/romfs", "{data}/mkwgame.dll",
+             "{data}/mkwgame.id", "{data}/spirv/shaders.pack"],
     "keeps_copy": true
   },
   "config": [
     {
       "id": "main",
       "format": "ini",
-      "file": [{ "path": "{install}/mkw.ini" }]
+      "file": [{ "path": "{data}/mkw.ini" }]
     }
   ],
-  "saves": ["{install}/profile/save", "{install}/profile/players"],
+  "saves": ["{data}/profile/save", "{data}/profile/players"],
   "folders": {
-    "game": [{ "path": "{install}/romfs" }],
-    "logs": [{ "path": "{install}/logs" }]
+    "game": [{ "path": "{data}/romfs" }],
+    "logs": [{ "path": "{data}/logs" }]
   },
   "settings": [
     {
