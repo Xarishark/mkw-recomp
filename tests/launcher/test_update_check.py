@@ -23,7 +23,7 @@ static SDL_Process process;
 static SDL_IOStream output;
 static const char *lines;
 static int exit_code, launches;
-static bool auto_check, packaged = true, spawn_ok = true;
+static bool auto_check, packaged = true, spawn_ok = true, managed;
 static const char *rt_port_version = "0.1.15";
 SDL_Mutex *SDL_CreateMutex() { return &mutex; }
 void SDL_LockMutex(SDL_Mutex *) {}
@@ -52,6 +52,7 @@ bool find_tools(const char *, char *python, char *script, size_t) {
 }
 int setup_step_index(const char *) { return -1; }
 void prepare_next() {}
+bool updates_managed_externally() { return managed; }
 """
 
 READ_WRITE = r"""
@@ -74,6 +75,7 @@ int main(int argc, char **argv) {
     exit_code = atoi(argv[3]);
     packaged = strcmp(argv[4], "unpackaged") != 0;
     spawn_ok = strcmp(argv[4], "spawn-failed") != 0;
+    managed = !strcmp(argv[4], "managed");
     if (!strcmp(argv[4], "prepared")) g_state.phase = UPDATE_PREPARED;
     update_check_start(".", manual);
     if (g_proc) reader(nullptr);
@@ -125,6 +127,8 @@ def check_probe(tmp_path_factory):
     ("manual", "", 0, "spawn-failed", "0 failed could not spawn"),
     ("manual", "", 0, "unpackaged", "0 failed this installation cannot check for updates"),
     ("manual", "latest\n", 0, "prepared", "0 prepared"),
+    # RecompLauncher (RECOMPLAUNCHER=1) owns the updates of the games it starts: not even a manual check runs.
+    ("manual", "update v0.1.16 100\n", 0, "managed", "0 idle"),
 ])
 def test_check_result(check_probe, mode, line, code, scenario, expected):
     p = subprocess.run([str(check_probe), mode, line, str(code), scenario], check=True,
