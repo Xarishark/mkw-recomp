@@ -158,6 +158,10 @@ def launcher_manifest(version: str, *, windows: bool) -> str:
         prepare["args"] = prepare["args"][2:]  # AppRun supplies the bundled Python and script.
         prepare["done"] = [path.removesuffix(".dll") + ".so" if path.endswith(".dll") else path
                            for path in prepare["done"]]
+    else:
+        # mkw.exe (to unpack a .nup/.nx and to warm the shaders) is in the install folder, not in {data}: without this
+        # prepare.py looks for it in the game folder. On Linux AppRun passes --runtime itself.
+        prepare["args"] += ["--runtime", "{install}"]
     prepare["args"] += ["--port", version]
     return json.dumps(manifest, indent=2) + "\n"
 
